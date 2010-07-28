@@ -186,6 +186,7 @@ void processParameters(int argc, char** argv)
 		else
 		if(string(argv[i])=="-overlay")
 		{
+			ops.push_back(overlay);
 		  stringstream ss;
 		  if(argc<i+8)
 		  {
@@ -199,10 +200,12 @@ void processParameters(int argc, char** argv)
 		  ss>>opoints.nax; ss>>opoints.nay;
 		  ss>>opoints.nbx; ss>>opoints.nby;
 		  //cerr<<opoints.ax<<" "<<opoints.ay <<" "<<opoints.bx<<" "<<opoints.by<<"   "<<opoints.nax<<" "<<opoints.nay <<" "<<opoints.nbx<<" "<<opoints.nby<<endl;
-
+			/*
 		  float xref,yref;
-		  xref=(opoints.ax+opoints.bx-opoints.nax-opoints.nbx)/2.; //shift determined by the center points
-		  yref=(opoints.ay+opoints.by-opoints.nay-opoints.nby)/2.; //shift determined by the center points
+		  xref=-(opoints.ax+opoints.bx-opoints.nax-opoints.nbx)/2.; //shift determined by the center points
+		  yref=-(opoints.ay+opoints.by-opoints.nay-opoints.nby)/2.; //shift determined by the center points
+		  cerr<<"ref: "<<xref<<" "<<yref<<endl;
+		  */
 		  float cosinus,sinus;
 		  float dx,dy,ndx,ndy;
 		  dx=opoints.bx-opoints.ax;
@@ -213,17 +216,21 @@ void processParameters(int argc, char** argv)
 		  float factor=1./sqrt(dx*dx+dy*dy)/sqrt(ndx*ndx+ndy*ndy);
 		  //cerr<<"Faktor "<<factor<<endl;
 		  cosinus=(dx*ndx+dy*ndy)*factor; //dot product
-		  sinus=(dx*ndy-dy*ndx)*factor ;
+		  sinus=-(dx*ndy-dy*ndx)*factor ;
 
 		  //rotation matrix not any more around reference point, but origin
 		  //shift = xref -matrix*xref
-		  s[0]=xref-(cosinus*xref + sinus*yref);
-		  s[1]=yref-(-sinus*xref + cosinus*yref);
+		  //s[0]=+xref+(cosinus*xref + sinus*yref);
+		  //s[1]=+yref+(-sinus*xref + cosinus*yref);
+		  s[0]=(opoints.nbx+opoints.nax)/2-cosinus*((opoints.bx+opoints.ax)/2)-sinus*((opoints.by+opoints.ay)/2);
+		  s[1]=(opoints.nby+opoints.nay)/2-cosinus*((opoints.by+opoints.ay)/2)+sinus*((opoints.bx+opoints.ax)/2);
 		  m[0]=cosinus;m[1]=sinus;
 		  m[2]=-sinus;m[3]=cosinus;
 		  
 		  cerr<<"rotation: cos "<<cosinus<<" sin "<<sinus<<"   shift "<<s[0]<<" "<<s[1]<<endl;
-		  
+		  cerr<<"testing: "<<opoints.ax<<" "<<opoints.ay<<" transforms to "<<s[0]+m[0]*opoints.ax+m[1]*opoints.ay<<" "<<s[1]+m[2]*opoints.ax+m[3]*opoints.ay<<endl;
+		  cerr<<"testing: "<<opoints.bx<<" "<<opoints.by<<" transforms to "<<s[0]+m[0]*opoints.bx+m[1]*opoints.by<<" "<<s[1]+m[2]*opoints.bx+m[3]*opoints.by<<endl;
+		  cerr<<"length discrepancy:"<<sqrt(dx*dx+dy*dy)-sqrt(ndx*ndx+ndy*ndy)<<endl;
 		  
 
 		}
@@ -327,36 +334,54 @@ int main(int argc, char** argv)
 	
 	if(argc==1)
 	{
-		cerr<<"GRECODE can modify GCODE for machining operations."<<endl;
+		cerr<<endl<<"GRECODE can modify GCODE for machining operations."<<endl;
 		cerr<<"It is licensed under the GNU Public License."<<endl<<endl;
-		cerr<<"Usage:\n grecode <operation [optional value]>  [-o output_gcode.ngc] [ input_gcode.ngc]  [-g output.gnuplot]"<<endl;
-		cerr<<"---------Operations:"<<endl;
+		cerr<<"Usage:"<<endl;
+		cerr<<" grecode <operation [optional value]>  [-o output_gcode.ngc]"<<endl;
+		cerr<<"  [ input_gcode.ngc]  [-g output.gnuplot]"<<endl;
+		cerr<<endl;
+		cerr<<"Operations:"<<endl;
 		//none,xflip, yflip, xyexchange, cw,ccw,rot,shift,scale,knive,align,killN,parameterize,overlay,makeabsolut
-		cerr<<"-xflip, -yflip,-xyexchange\n  |just replace the x-y coordinates."<<endl;
-		cerr<<"-cw,-ccw\n  |clockwise or counter-clockwise rotation by 90 degree."<<endl;
-		cerr<<"-rot <angle>\n  |Counter-clockwise Rotation by free angle in degree. Expressions are not allowed"<<endl;
-		cerr<<"-scale <factor>\n  |Scales the geometry by a factor."<<endl;
-		cerr<<"-shift <xshift> <yshift>\n  |Moves into +x +y by the values in mm."<<endl;
-		cerr<<"-align <alignx> <alingy>\n  |calculates the bounding box by g1 and g0 moves. Arcs are ignored."<<endl;
-		cerr<<"  |alignments are min,middle,max for the G1 and G0total bounding box."<<endl;
-		cerr<<"  |alignments are cmin,cmiddle,cmax for the G1 bounding box. Also 'keep' is valid for no shift."<<endl;
-		cerr<<"-killn\n  |removes all N Statements"<<endl;
+		cerr<<"-xflip, -yflip,-xyexchange"<<endl;
+		cerr<<" just replace the x-y coordinates."<<endl;
+		cerr<<"-cw,-ccw"<<endl;
+		cerr<<" clockwise or counter-clockwise rotation by 90 degree."<<endl;
+		cerr<<"-rot <angle>"<<endl;
+		cerr<<" Counter-clockwise Rotation by free angle in degree."<<endl;
+		cerr<<" Expressions are not allowed"<<endl;
+		cerr<<"-scale <factor>"<<endl;
+		cerr<<" Scales the geometry by a factor."<<endl;
+		cerr<<"-shift <xshift> <yshift>"<<endl;
+		cerr<<" Moves into +x +y by the values in mm."<<endl;
+		cerr<<"-align <alignx> <alingy>"<<endl;
+		cerr<<" calculates the bounding box by g1 and g0 moves. Arcs are ignored."<<endl;
+		cerr<<" alignments are min,middle,max for the G1 and G0total bounding box."<<endl;
+		cerr<<" alignments are cmin,cmiddle,cmax for the G1 bounding box."<<endl;
+		cerr<<"  Also 'keep' is valid for no shift."<<endl;
+		cerr<<"-killn"<<endl;
+		cerr<<" removes all N Statements"<<endl;
 		cerr<<"-parameterize <minoccurence> <variables Startnumber>"<<endl;
-		cerr<<"  |This will scan for re-occuring values in X, Y and Z words."<<endl;
-		cerr<<"  |If the occure more often than minoccurence, they will be substituted by variables."<<endl;
-		cerr<<"  |Their numbers are starting from the specified number\n"<<endl;
-		cerr<<"-overlay <X PointA> <Y PointA> <X PointB> <Y PointB>  <X NewPointA> <Y NewPointA> <X NewPointB> <Y NewPointB>"<<endl;
-		cerr<<"  | will shift and rotate the the gcode so that PointA and PointB move to the new locations."<<endl;
-		cerr<<"  | distance mismatches beweeen A-B and newA-newB are compensated."<<endl;
+		cerr<<" This will scan for re-occuring values in X, Y and Z words."<<endl;
+		cerr<<" If the occure more often than minoccurence,"<<endl;
+		cerr<<"  they will be substituted by variables."<<endl;
+		cerr<<" Their numbers are starting from the specified number"<<endl;
+		cerr<<"-overlay <X PointA> <Y PointA> <X PointB> <Y PointB>"<<endl;
+		cerr<<"        <X NewPointA> <Y NewPointA> <X NewPointB> <Y NewPointB>"<<endl;
+		cerr<<" This will shift and rotate the the gcode,"<<endl;
+		cerr<<" so that PointA and PointB move to the new locations."<<endl;
+		cerr<<" Distance mismatches beweeen A-B and newA-newB are compensated."<<endl;
 		cerr<<"-knive <delay mm>"<<endl;
-		cerr<<"  | This should compensate partially for foil cutters, where the cutting point is lagging."<<endl;
-		cerr<<"  | The lagging distance should be specified. Arc movements could be problematic currently."<<endl;
-		cerr<<"---------Input/Output:"<<endl;
+		cerr<<" This should compensate partially for foil cutters,"<<endl;
+		cerr<<" where the cutting point is lagging."<<endl;
+		cerr<<" The lagging distance should be specified."<<endl;
+		cerr<<" Arc movements could be problematic currently."<<endl;
+		cerr<<endl;
+		cerr<<"Input/Output:"<<endl;
 		cerr<<" The program reads input from the console and outputs to the console"<<endl;
 		cerr<<" If an input file is specified by -i, it is read instead."<<endl;
 		cerr<<" If an output file is specified by -o, the output is written there."<<endl;
-		cerr<<" To facilitate viewing of the gcode, a gnuplot-readable output file can be specified by -g."<<endl;
-		cerr<<"   It can be viewed by gnuplot and entering: splot \"output.gnuplot\" u 1:2:3:4 w lp palette"<<endl;
+		cerr<<" A gnuplot-readable output file can be specified by -g."<<endl;
+		cerr<<" It can be viewed by gnuplot: splot \"output.gnuplot\" u 1:2:3:4 w lp palette"<<endl;
 		
 		return 1;
 	}
@@ -479,37 +504,6 @@ int main(int argc, char** argv)
 	}
 	return 0;
 	
-	/*
-	for(int i=0;i<gd.wd.size();i++) //all words of this line
-	{
-		Word &w=gd.wd[i];
-		switch(op)
-		{
-		
-		case knive:
-			switch(w.type)
-			{
-			case 'X':
-				//cout<<w.type<<" "<<"["<<w.text<<"+"<<knivedelay*gd.lastDir[0]<<"]";
-				break;
-			case 'Y':
-				//cout<<w.type<<" "<<"["<<w.text<<"+"<<knivedelay*gd.lastDir[1]<<"]";
-				break;
-			case ' ': //comments and stuff
-				cout<<w.text;
-				break;
-			default:
-				cout<<w.type<<w.text<<" ";
-			}
-			break;
-		default:
-			cout<<"ERROR; operation not implemented yet:"<<argv[1] <<endl;
-			exit(1);
-		}
-	}
-	
-	return 0;
-*/
 }
 
 
