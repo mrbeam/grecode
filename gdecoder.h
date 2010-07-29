@@ -61,6 +61,7 @@ public:
 	void xyexchange();
 	int parameterize(int startnumber,int minoccurence,char direction);
 	void simplify(bool drop_Nwords,bool drop_comments); 
+	void copies(int nrcopies[2],double copyshift[2]); ///create mutliple copies next to each other in x and y direction, corresponding to the array index
 	
 	std::ostream *infostream; ///debugging information is written here, usually cerr so it is not piped
 	

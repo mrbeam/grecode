@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License along with thi
 #include <vector>
 
 using namespace std;
-enum operations{none,xflip, yflip, xyexchange, cw,ccw,rot,shift,scale,knive,align,killN,parameterize,overlay,makeabsolut};
+enum operations{none,xflip, yflip, xyexchange, cw,ccw,rot,shift,scale,knive,align,killN,parameterize,overlay,makeabsolut,copies};
 enum aligns{align_min,align_max,align_middle,  align_cmin,align_cmax,align_cmiddle, align_keep};  // c: with bounding box of the cuts only, otherwise also rapid moves
 
 
@@ -39,6 +39,9 @@ double s[2];
 double m[4];
 aligns alignx,aligny;
 int parm_minoccurence,parm_startnr;
+
+int nrcopy[2];
+double copyshift[2];
 
 struct overlaypoints //stores 4 coordinates-pairs
 {
@@ -182,6 +185,43 @@ void processParameters(int argc, char** argv)
 			ss.clear();
 			ss>>ys;
 			setmatrix(m,s, 1,0,0,1, xs, ys);
+		}
+				else
+		if(string(argv[i])=="-copies")
+		{
+			ops.push_back(copies);
+			stringstream ss;
+			if(i++>=argc)
+			{
+				cerr<<"ERROR: number of x copies required for copies operations"<<endl;
+				exit(1);
+			}
+			ss<<argv[i]<<" ";
+			if(i++>=argc)
+			{
+				cerr<<"ERROR: number of y copies required for copies operations"<<endl;
+				exit(1);
+			}
+			ss<<argv[i]<<" ";
+			if(i++>=argc)
+			{
+				cerr<<"ERROR: x shift required for copies operations"<<endl;
+				exit(1);
+			}
+			ss<<argv[i]<<" ";
+			if(i++>=argc)
+			{
+				cerr<<"ERROR: y shift required for copies operations"<<endl;
+				exit(1);
+			}
+			ss<<argv[i]<<" ";
+			
+			ss>>nrcopy[0];
+			ss>>nrcopy[1];
+			ss>>copyshift[0];
+			ss>>copyshift[1];
+			
+			setmatrix(m,s, 1,0,0,1, 0, 0);
 		}
 		else
 		if(string(argv[i])=="-overlay")
@@ -464,6 +504,7 @@ int main(int argc, char** argv)
 		  case overlay: gd.fullmatrix(s,m); break;
 		  case rot: gd.fullmatrix(s,m); break;
 		  case knive: gd.knive(knivedelay);break;
+		  case copies: gd.copies(nrcopy,copyshift);break;
 		  default:
 			 cerr<<"operation not implemented yet:"<<op<<endl;
 			 return 1;
@@ -487,6 +528,7 @@ int main(int argc, char** argv)
 	{
 		out=&cout;
 	}
+	
 	gd.output(*out);
 	
 

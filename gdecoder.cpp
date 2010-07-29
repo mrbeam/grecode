@@ -1058,3 +1058,9 @@ void GDecoder::knive(float knivedelay)
 
   }
 }
+
+void GDecoder::copies(int nrcopies[2],double copyshift[2])
+{
+
+}
+
