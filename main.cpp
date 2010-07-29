@@ -415,6 +415,9 @@ int main(int argc, char** argv)
 		cerr<<" where the cutting point is lagging."<<endl;
 		cerr<<" The lagging distance should be specified."<<endl;
 		cerr<<" Arc movements could be problematic currently."<<endl;
+		cerr<<"-copies <number x=n> <number y=m> <shiftx> <shifty>"<<endl;
+		cerr<<" Creates multiple copies of the original code."<<endl;
+		cerr<<" They are aligned in an n times m grid."<<endl;
 		cerr<<endl;
 		cerr<<"Input/Output:"<<endl;
 		cerr<<" The program reads input from the console and outputs to the console"<<endl;

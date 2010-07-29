@@ -150,8 +150,9 @@ int GDecoder::read(std::istream &gc)
 					linenr++;
 					//if(debug) cerr<<" comment text: \""<<w.text<<"\""<<endl;
 				break;
+				case 13:  //windows line feed
 				case '\n':
-					w.text=c;
+					w.text='\n';
 					linenr++;
 					//if(debug) cerr<<"Newline"<<endl;
 				break;
@@ -185,6 +186,7 @@ int GDecoder::read(std::istream &gc)
 					linenr++;
 					if(w.text.size()>0)
 					{
+					  
 						*infostream<<" problem with text: tag \""<<c<<"\"   \""<<w.text<<"\""<<endl;
 					}
 			}
@@ -322,8 +324,8 @@ void GDecoder::findBounds()
 	}
 	
 	infostream->precision(3);
-	*infostream<<"Potential Total Bounds:\n x in \t"<<xmin<<"\t"<<xmax<<"\n y in \t"<<ymin<<"\t"<<ymax<<endl;;
-	*infostream<<"Potential Cut   Bounds:\n x in \t"<<cxmin<<"\t"<<cxmax<<"\n y in \t"<<cymin<<"\t"<<cymax<<endl;;
+	*infostream<<"Potential Total Bounds:\n x in \t"<<xmin<<"\t"<<xmax<<"  extension "<<xmax-xmin<<"\n y in \t"<<ymin<<"\t"<<ymax<<"  extension "<<ymax-ymin<<endl;;
+	*infostream<<"Potential Cut   Bounds:\n x in \t"<<cxmin<<"\t"<<cxmax<<"  extension "<<cxmax-cxmin<<"\n y in \t"<<cymin<<"\t"<<cymax<<"  extension "<<cymax-cymin<<endl;;
 }
 
 
@@ -1059,8 +1061,65 @@ void GDecoder::knive(float knivedelay)
   }
 }
 
+void copyWord(const Word &from, Word &to)
+{
+	to.isLiteral=from.isLiteral;
+	to.type=from.type;
+	to.text=from.text;
+	to.isExpression=from.isExpression;
+	to.isVariable=from.isVariable;
+	to.isVariableDefine=from.isVariableDefine;
+	to.varNumber=from.varNumber;
+	to.value=from.value;
+	to.curPos[0]=from.curPos[0];
+	to.curPos[1]=from.curPos[1];
+	to.curPos[2]=from.curPos[2];
+	to.lastPos[0]=from.lastPos[0];
+	to.lastPos[1]=from.lastPos[1];
+	to.lastPos[2]=from.lastPos[2];
+	to.lastDir[0]=from.lastDir[0];
+	to.lastDir[1]=from.lastDir[1];
+	to.lastDir[2]=from.lastDir[2];
+	to.linenr=from.linenr;
+
+}
+
 void GDecoder::copies(int nrcopies[2],double copyshift[2])
 {
+  int oldlength=wd.size();
+  if( (nrcopies[0]<=0) ||(nrcopies[1]<=0))
+  {
+	 *infostream<<"Error: copies number not positive"<<endl;
+	 *infostream<<"Nothing done"<<endl;
+	 return;
+  }
+  wd.resize(oldlength*nrcopies[0]*nrcopies[1]);
+  for(int nx=0;nx<nrcopies[0];nx++)
+  for(int ny=0;ny<nrcopies[1];ny++)
+  {
+		if(nx+ny==0)
+		  continue;  //the first copy is the original
+
+		float units=1;
+		bool moveAbsolute=true;
+		for(int i=0;i<oldlength;i++)
+		{
+		  struct Word &oldw=wd[i];
+		  struct Word &neww=wd[i+(ny*nrcopies[0]+nx)*oldlength];
+		  copyWord(oldw,neww);
+		  //*infostream<<"Oldi "<<i<<" New i "<<i+(ny*nrcopies[0]+nx)*oldlength<<endl;
+		  
+			checkUnits(oldw,units);
+			checkAbsolute(oldw,moveAbsolute);
+			double dx,dy;
+			dx=copyshift[0]*nx;
+			dy=copyshift[0]*ny;
+			if(neww.type=='X' && dx!=0)
+			  modify(neww,1,dx/units);
+			if(neww.type=='Y' && dy!=0)
+			  modify(neww,1,dy/units);
+		}
+  }
 
 }
 
