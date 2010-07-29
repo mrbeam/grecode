@@ -1123,3 +1123,20 @@ void GDecoder::copies(int nrcopies[2],double copyshift[2])
 
 }
 
+void GDecoder::wordcomment(char type, std::string text)
+{
+  *infostream<<"Disabling "<<type<<text<<endl;
+  for(int i=0;i<wd.size();i++)
+  {
+	 struct Word &w=wd[i];
+	 if(w.type==type)
+	 if(w.text==text)
+	 {
+		string stype=" ";
+		stype[0]=w.type;
+		w.text=stype+w.text+string(")");
+		w.type='(';
+	 }
+  }
+
+}

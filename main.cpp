@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License along with thi
 #include <vector>
 
 using namespace std;
-enum operations{none,xflip, yflip, xyexchange, cw,ccw,rot,shift,scale,knive,align,killN,parameterize,overlay,makeabsolut,copies};
+enum operations{none,xflip, yflip, xyexchange, cw,ccw,rot,shift,scale,knive,align,killN,parameterize,overlay,makeabsolut,copies,comment};
 enum aligns{align_min,align_max,align_middle,  align_cmin,align_cmax,align_cmiddle, align_keep};  // c: with bounding box of the cuts only, otherwise also rapid moves
 
 
@@ -42,6 +42,8 @@ int parm_minoccurence,parm_startnr;
 
 int nrcopy[2];
 double copyshift[2];
+char commenttype;
+string commenttext;
 
 struct overlaypoints //stores 4 coordinates-pairs
 {
@@ -186,7 +188,22 @@ void processParameters(int argc, char** argv)
 			ss>>ys;
 			setmatrix(m,s, 1,0,0,1, xs, ys);
 		}
-				else
+		else
+		if(string(argv[i])=="-comment")
+		{
+			ops.push_back(comment);
+			
+			if(i++>=argc)
+			{
+				cerr<<"ERROR: comment tag required"<<endl;
+				exit(1);
+			}
+			stringstream ss(argv[i]);
+			commenttype=ss.get();
+			ss>>commenttext;
+			
+		}
+		else
 		if(string(argv[i])=="-copies")
 		{
 			ops.push_back(copies);
@@ -418,6 +435,8 @@ int main(int argc, char** argv)
 		cerr<<"-copies <number x=n> <number y=m> <shiftx> <shifty>"<<endl;
 		cerr<<" Creates multiple copies of the original code."<<endl;
 		cerr<<" They are aligned in an n times m grid."<<endl;
+		cerr<<"-comment <character type><text> "<<endl;
+		cerr<<" Comments out words: -comment M03: M03->(M03)"<<endl;
 		cerr<<endl;
 		cerr<<"Input/Output:"<<endl;
 		cerr<<" The program reads input from the console and outputs to the console"<<endl;
@@ -496,6 +515,7 @@ int main(int argc, char** argv)
 		  case scale: gd.scale(scalefactor,scalefactor);break;
 		  case killN: gd.simplify(true,false); break;
 		  case makeabsolut: gd.makeabsolute(); break;
+		  case comment: gd.wordcomment(commenttype,commenttext); break;
 		  case parameterize:
 		  {
 			 int offset=0;

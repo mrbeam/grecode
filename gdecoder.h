@@ -59,6 +59,7 @@ public:
 	void makeabsolute(); ///relative movements->absolute movements
 	void fullmatrix(double shift[2],double m[4]); //full matrix operations+shift: x->M.x+s
 	void xyexchange();
+	void wordcomment(char type, std::string text);
 	int parameterize(int startnumber,int minoccurence,char direction);
 	void simplify(bool drop_Nwords,bool drop_comments); 
 	void copies(int nrcopies[2],double copyshift[2]); ///create mutliple copies next to each other in x and y direction, corresponding to the array index
