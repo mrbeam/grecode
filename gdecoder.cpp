@@ -96,6 +96,50 @@ void GDecoder::parseAfterEqual(istream &gc,Word &w)
 			}
 }
 
+void GDecoder::ztilt(float rot,char direction)
+{
+	float units=1;
+	bool moveAbsolute=true;
+	float lastx=0,lastz=0;
+	float sr=tan(rot);
+	for(int i=0;i<wd.size();i++)
+	{
+		struct Word &w=wd[i];
+		checkUnits(w,units);
+		checkAbsolute(w,moveAbsolute);
+		checkVariable(w);
+		
+		//cerr<<"w.type="<<w.type<<" "<<w.text<<endl;
+		if(w.type=='Y' )
+		{
+			lastx=evaluate(w)*units;
+			struct Word nw;
+			nw.type='Z';
+			stringstream ss;
+			ss<<lastx*sr+lastz;
+			
+			nw.text=ss.str();
+			nw.isLiteral=false;
+			nw.isVariableDefine=false;
+			wd.insert(wd.begin()+i+1,nw);
+			i+=1;
+			
+			cerr<<"lastx="<<lastx<<endl;
+			continue;
+		}
+			
+		if(w.type=='Z' )
+		{
+			lastz=evaluate(w)*units;
+			modify(w,1,lastx*sr);
+		}
+
+	
+
+	}
+
+}
+
 int GDecoder::read(std::istream &gc)
 {
 	std::string wholeline; // the text of the complete line
@@ -335,6 +379,7 @@ void  GDecoder::modify(Word &w, float scale, float shift)
 	stringstream  ss;
 	ss.precision(5);
 	ss<<fixed;
+	//*infostream<<"Modify:"<<w.type<<w.text<<" "<<scale<<" "<<shift<<endl;
 	if(w.isExpression ||w.isVariable)
 	{
 		ss<<"[";
@@ -369,9 +414,9 @@ void GDecoder::output(ostream &out)
 	out.setf(ios_base::fixed);
 	out.precision(5);
 	out<<fixed;
-	out<<";###############"<<endl;
-	out<<"; possible total bounding box: x in "<<xmin<<" "<<xmax<<"  y in "<<ymin<<" "<<ymax<<endl;
-	out<<"; possible cutting bounding box: x in "<<cxmin<<" "<<cxmax<<"  y in "<<cymin<<" "<<cymax<<endl;
+	//out<<";###############"<<endl;
+	//out<<"; possible total bounding box: x in "<<xmin<<" "<<xmax<<"  y in "<<ymin<<" "<<ymax<<endl;
+	//out<<"; possible cutting bounding box: x in "<<cxmin<<" "<<cxmax<<"  y in "<<cymin<<" "<<cymax<<endl;
 	
 	for(int i=0;i<wd.size();i++)
 	{
@@ -384,7 +429,8 @@ void GDecoder::output(ostream &out)
 		else
 			out<<w.type<<w.text<<" ";
 	}
-	out<<";###############"<<endl;
+	//out<<";###############"<<endl;
+	//out<<endl;
 	
 }
 
@@ -731,10 +777,12 @@ void GDecoder::fullmatrix(double shift[2],double m[4])
 		}
 
 
-		
-
-		if(breakchain)
+		//if(w.linenr==7){output(*infostream);exit(1);}
+		if(lastxmove==0 &&lastymove==0)
+			breakchain=false;
+		if(breakchain)  //end of a unified move found
 		{
+			
 			if(w.isExpression && (w.type=='X'||w.type=='Y'||w.type=='Z'))
 			{
 				cerr<<"Cannot only rotate free with no gcode expressions [] !"<<endl;
@@ -751,6 +799,7 @@ void GDecoder::fullmatrix(double shift[2],double m[4])
 				wd.insert(it+i,iw);
 				//*infostream<<"wd.size after"<<wd.size()<<endl;
 				int neww=i;
+				//*infostream<<"inserting at"<<i<<endl;
 				i++;
 				
 				
@@ -792,6 +841,7 @@ void GDecoder::fullmatrix(double shift[2],double m[4])
 				wd[neww].lastPos[0]=wd[i].lastPos[0];
 				wd[neww].lastPos[1]=wd[i].lastPos[1];
 				wd[neww].lastPos[2]=wd[i].lastPos[2];
+				//*infostream<<"newword:"<<wd[neww].text<<endl;
 				/*
 				for(int g=5;g>=-1;g--)
 				{
@@ -812,7 +862,9 @@ void GDecoder::fullmatrix(double shift[2],double m[4])
 			
 			if(moveAbsolute)
 			{
+				if(lastxmove>0)
 				modify(wd[lastxmove],m[0],(shift[0]+m[1]*w.lastPos[1])/units);
+				if(lastymove>0)
 				modify(wd[lastymove],m[3],(shift[1]+m[2]*w.lastPos[0])/units);
 			}
 				else
@@ -823,7 +875,9 @@ void GDecoder::fullmatrix(double shift[2],double m[4])
 				if(lastymove>0)
 					wdly=evaluate(wd[lastymove]);
 				
+				if(lastxmove>0)
 				modify(wd[lastxmove],m[0],m[1]*wdly);
+				if(lastymove>0)
 				modify(wd[lastymove],m[3],m[2]*wdlx);
 			}
 		  
@@ -891,26 +945,36 @@ void GDecoder::checkUnits(Word &w,float &units)
 void GDecoder::makeabsolute()
 {
 	*infostream<<"MAKEABSOLUT"<<endl;
+	//bool debug=true;
   bool moveAbsolute=true;
   	float units=1;
 	float curx=0,cury=0,curz=0;
 	float newx=0,newy=0,newz=0;
+	//theses are always in mm;
   for(int i=0;i<wd.size();i++)
   {
 		struct Word &w=wd[i];
 		checkVariable(w);
-		checkUnits(w,units);
-		if(w.type=='G' && w.text=="20")
+		
+		if(w.type=='G' && w.text=="20" && fabs(units-25.4)>0.1)
 		{
-			curx*=1/units;
-			cury*=1/units;
-			curz*=1/units;
-			curx*=1/units;
-			cury*=1/units;
-			curz*=1/units;
-			/*WHY THE FUCK*/
+			checkUnits(w,units);
+			if(debug) *infostream<<"Switching to inch in line"<<w.linenr<<" "<<units<<" :"<<curx<<" "<<cury<<" "<<curz<<endl;
+			//curx*=1/units;
+			//cury*=1/units;
+			//curz*=1/units;
 			
-			if(debug) *infostream<<"Switching to inch"<<endl;
+			
+			//if(debug) *infostream<<curx<<" "<<cury<<" "<<curz<<endl;
+		}
+		if(w.type=='G' && w.text=="21" && fabs(units-25.4)<0.1)
+		{
+			checkUnits(w,units);
+			if(debug) *infostream<<"Switching to mm "<<curx<<" "<<cury<<" "<<curz<<endl;
+			//curx*=units;
+			//cury*=units;
+			//curz*=units;
+			///if(debug) *infostream<<curx<<" "<<cury<<" "<<curz<<endl;
 		}
 		
 		checkAbsolute(w,moveAbsolute);
@@ -924,23 +988,23 @@ void GDecoder::makeabsolute()
 		{
 		case 'X':
 			if(moveAbsolute)
-				newx=evaluate(w)/units;
+				newx=evaluate(w)*units;
 			else
-				newx=curx+evaluate(w)/units;
+				newx=curx+evaluate(w)*units;
 
 		break;
 		case 'Y':
 			if(moveAbsolute)
-				newy=evaluate(w)/units;
+				newy=evaluate(w)*units;
 			else
-				newy=cury+evaluate(w)/units;
+				newy=cury+evaluate(w)*units;
 
 		break;
 		case 'Z':
 			if(moveAbsolute)
-				newz=evaluate(w)/units;
+				newz=evaluate(w)*units;
 			else
-				newz=curz+evaluate(w)/units;
+				newz=curz+evaluate(w)*units;
 
 		break;
 
@@ -951,14 +1015,21 @@ void GDecoder::makeabsolute()
 		{
 		  switch(w.type)
 		  {
-			 case 'X': modify(w,0,newx*units);break;
-			 case 'Y': modify(w,0,newy*units);break;
-			 case 'Z': modify(w,0,newz*units);break;
+			 case 'X': modify(w,0,newx/units);break;
+			 case 'Y': modify(w,0,newy/units);break;
+			 case 'Z': modify(w,0,newz/units);break;
 			 default:
 				;
 		  }
+			
 		}
-
+		if(0&&(w.type=='Z'))
+			{
+				stringstream ss;
+				
+				ss<<"("<<curz<<"->"<<newz<<")";
+				w.text+=ss.str();
+			}
 		curx=newx;
 		cury=newy;
 		curz=newz;
@@ -1113,7 +1184,7 @@ void GDecoder::copies(int nrcopies[2],double copyshift[2])
 			checkAbsolute(oldw,moveAbsolute);
 			double dx,dy;
 			dx=copyshift[0]*nx;
-			dy=copyshift[0]*ny;
+			dy=copyshift[1]*ny;
 			if(neww.type=='X' && dx!=0)
 			  modify(neww,1,dx/units);
 			if(neww.type=='Y' && dy!=0)

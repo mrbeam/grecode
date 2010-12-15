@@ -55,6 +55,7 @@ public:
 	void calcPositions(); /// calc coordinate-positions of the gcode-words
 	void shift(float dx,float dy);
 	void scale(float sx,float sy);
+	void ztilt(float rot,char direction);
 	void knive(float knivedelay); ///knive cutting compensation
 	void makeabsolute(); ///relative movements->absolute movements
 	void fullmatrix(double shift[2],double m[4]); //full matrix operations+shift: x->M.x+s

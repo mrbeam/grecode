@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License along with thi
 #include <vector>
 
 using namespace std;
-enum operations{none,xflip, yflip, xyexchange, cw,ccw,rot,shift,scale,knive,align,killN,parameterize,overlay,makeabsolut,copies,comment};
+enum operations{none,xflip, yflip, xyexchange, cw,ccw,rot,shift,scale,knive,align,killN,parameterize,overlay,makeabsolut,copies,comment,zxtilt,zytilt};
 enum aligns{align_min,align_max,align_middle,  align_cmin,align_cmax,align_cmiddle, align_keep};  // c: with bounding box of the cuts only, otherwise also rapid moves
 
 
@@ -35,6 +35,7 @@ void setmatrix(double *m,double *shift,  double m11,double m12,double m21,double
 string outputfile="",inputfile="",outputfilegnuplot="";
 operations op=none;
 double rotangle=0,scalefactor=1,knivedelay=0;
+double rotxangle=0,rotyangle=0;
 double s[2];
 double m[4];
 aligns alignx,aligny;
@@ -42,6 +43,8 @@ int parm_minoccurence,parm_startnr;
 
 int nrcopy[2];
 double copyshift[2];
+bool copiesRespect=false;
+bool copiesRespectDistance=0;
 char commenttype;
 string commenttext;
 
@@ -106,6 +109,34 @@ void processParameters(int argc, char** argv)
 			ss>>rotangle;
 			rotangle*=pi/180.;
 			setmatrix(m,s, cos(rotangle),-sin(rotangle),sin(rotangle),cos(rotangle), 0, 0);
+		}
+		else
+		if(string(argv[i])=="-zxtilt")
+		{
+			ops.push_back(zxtilt);
+			if(i++>=argc)
+			{
+				cerr<<"ERROR: rotation angle required"<<endl;
+				exit(1);
+			}
+			stringstream ss(argv[i]);
+			ss>>rotxangle;
+			rotxangle*=pi/180.;
+			
+		}
+		else
+		if(string(argv[i])=="-zytilt")
+		{
+			ops.push_back(zytilt);
+			if(i++>=argc)
+			{
+				cerr<<"ERROR: rotation angle required"<<endl;
+				exit(1);
+			}
+			stringstream ss(argv[i]);
+			ss>>rotyangle;
+			rotyangle*=pi/180.;
+			
 		}
 		else
 		if(string(argv[i])=="-makeabsolut")
@@ -207,37 +238,67 @@ void processParameters(int argc, char** argv)
 		if(string(argv[i])=="-copies")
 		{
 			ops.push_back(copies);
-			stringstream ss;
-			if(i++>=argc)
+			if(string(argv[i+1])!="respect")
 			{
-				cerr<<"ERROR: number of x copies required for copies operations"<<endl;
-				exit(1);
+				copiesRespect=false;
+				stringstream ss;
+				if(i++>=argc)
+				{
+					cerr<<"ERROR: number of x copies required for copies operations"<<endl;
+					exit(1);
+				}
+				ss<<argv[i]<<" ";
+				if(i++>=argc)
+				{
+					cerr<<"ERROR: number of y copies required for copies operations"<<endl;
+					exit(1);
+				}
+				ss<<argv[i]<<" ";
+				if(i++>=argc)
+				{
+					cerr<<"ERROR: x shift required for copies operations"<<endl;
+					exit(1);
+				}
+				ss<<argv[i]<<" ";
+				if(i++>=argc)
+				{
+					cerr<<"ERROR: y shift required for copies operations"<<endl;
+					exit(1);
+				}
+				ss<<argv[i]<<" ";
+				
+				ss>>nrcopy[0];
+				ss>>nrcopy[1];
+				ss>>copyshift[0];
+				ss>>copyshift[1];
 			}
-			ss<<argv[i]<<" ";
-			if(i++>=argc)
+			else
 			{
-				cerr<<"ERROR: number of y copies required for copies operations"<<endl;
-				exit(1);
+				i++; //first one="respect"
+				copiesRespect=true;
+				stringstream ss;
+				if(i++>=argc)
+				{
+					cerr<<"ERROR: number of x copies required for copies operations"<<endl;
+					exit(1);
+				}
+				ss<<argv[i]<<" ";
+				if(i++>=argc)
+				{
+					cerr<<"ERROR: number of y copies required for copies operations"<<endl;
+					exit(1);
+				}
+				ss<<argv[i]<<" ";
+				if(i++>=argc)
+				{
+					cerr<<"ERROR: respect distance required for copies operations"<<endl;
+					exit(1);
+				}
+				ss<<argv[i]<<" ";
+				ss>>nrcopy[0];
+				ss>>nrcopy[1];
+				ss>>copiesRespectDistance;
 			}
-			ss<<argv[i]<<" ";
-			if(i++>=argc)
-			{
-				cerr<<"ERROR: x shift required for copies operations"<<endl;
-				exit(1);
-			}
-			ss<<argv[i]<<" ";
-			if(i++>=argc)
-			{
-				cerr<<"ERROR: y shift required for copies operations"<<endl;
-				exit(1);
-			}
-			ss<<argv[i]<<" ";
-			
-			ss>>nrcopy[0];
-			ss>>nrcopy[1];
-			ss>>copyshift[0];
-			ss>>copyshift[1];
-			
 			setmatrix(m,s, 1,0,0,1, 0, 0);
 		}
 		else
@@ -437,6 +498,8 @@ int main(int argc, char** argv)
 		cerr<<" They are aligned in an n times m grid."<<endl;
 		cerr<<"-comment <character type><text> "<<endl;
 		cerr<<" Comments out words: -comment M03: M03->(M03)"<<endl;
+		cerr<<"-zxtilt <angle>  or -zytilt <angle>"<<endl;
+		cerr<<" shear-transform z values so that the x-y area is tiltet do the angle"<<endl;
 		cerr<<endl;
 		cerr<<"Input/Output:"<<endl;
 		cerr<<" The program reads input from the console and outputs to the console"<<endl;
@@ -454,6 +517,7 @@ int main(int argc, char** argv)
 	
 	
 	GDecoder gd;
+	Word w;
 	//perform input
 	istream *in;
 	if(inputfile.length()==0)
@@ -526,8 +590,29 @@ int main(int argc, char** argv)
 			 break;
 		  case overlay: gd.fullmatrix(s,m); break;
 		  case rot: gd.fullmatrix(s,m); break;
+		  case zxtilt: gd.ztilt(rotxangle,'X'); break;
+		  case zytilt: gd.ztilt(rotyangle,'Y'); break;
 		  case knive: gd.knive(knivedelay);break;
-		  case copies: gd.copies(nrcopy,copyshift);break;
+		  case copies: 
+			{
+				if(copiesRespect)
+				{
+					copyshift[0]=gd.cxmax-gd.cxmin+copiesRespectDistance;
+					copyshift[1]=gd.cymax-gd.cymin+copiesRespectDistance;
+					cerr<<"for other transformations use:    -copies "<<nrcopy[0]<<" "<<nrcopy[1]<<" "<<copyshift[0]<<" "<<copyshift[1]<<endl;
+				}
+				gd.copies(nrcopy,copyshift);
+				gd.wordcomment('M',"2");
+				gd.wordcomment('M',"5");
+				gd.wordcomment('M',"30");
+				gd.wd.resize(gd.wd.size()+1);
+				gd.wd.back().type='M';
+				gd.wd.back().text="2";
+				gd.wd.back().isLiteral=false;
+				gd.wd.back().isVariableDefine=false;
+				//gd.wd.push_back(w);
+			}
+			break;
 		  default:
 			 cerr<<"operation not implemented yet:"<<op<<endl;
 			 return 1;
@@ -538,9 +623,12 @@ int main(int argc, char** argv)
 	
 	//output
 	ostream *out;
+	fstream *fout=0;
 	if(outputfile.length()>0)
 	{
-	 out=new fstream(outputfile.c_str(),fstream::out);
+		
+	 fout=new fstream(outputfile.c_str(),fstream::out);
+	out=fout;
 	 if(!out->good())
 	 {
 		cerr<<"cannot open output file \""<<outputfile<<"\""<<endl;
@@ -553,6 +641,7 @@ int main(int argc, char** argv)
 	}
 	
 	gd.output(*out);
+	if(fout) fout->close();
 	
 
 	ostream *outg;
@@ -570,6 +659,7 @@ int main(int argc, char** argv)
 	return 0;
 	
 }
+
 
 
 
